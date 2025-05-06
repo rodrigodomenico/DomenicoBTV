@@ -51,11 +51,40 @@
     }
 
     .user {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
       padding: 15px;
       border: 1px solid var(--border-color);
-      border-radius: 8px;
-      margin-bottom: 10px;
+      border-radius: 12px;
+      margin-bottom: 12px;
       background-color: var(--card-bg);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease;
+    }
+
+    .user:hover {
+      transform: translateY(-2px);
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 15px;
+    }
+
+    .user-info span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
     }
 
     .warning {
@@ -66,6 +95,11 @@
     .expired {
       background-color: var(--danger);
       color: #fff;
+    }
+
+    .green {
+      background-color: #2ecc71;
+      color: #000;
     }
 
     .container {
@@ -97,6 +131,9 @@
       .stats {
         flex-direction: column;
       }
+      .user-buttons {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -110,8 +147,6 @@
     <input type="date" id="vencimento"/>
     <label>Telefone:</label>
     <input type="text" id="telefone"/>
-    <label>Mensagem padrão para WhatsApp:</label>
-    <textarea id="mensagem" rows="3">Olá, seu usuário está próximo de vencer, gostaria de realizar a renovação?</textarea>
 
     <button onclick="adicionarUsuario()">Adicionar</button>
 
@@ -148,6 +183,20 @@
       return diff;
     }
 
+    function formatarData(dataStr) {
+      const data = new Date(dataStr);
+      const dia = String(data.getDate()).padStart(2, '0');
+      const mes = String(data.getMonth() + 1).padStart(2, '0');
+      const ano = data.getFullYear();
+      return `${dia}/${mes}/${ano}`;
+    }
+
+    function descricaoVencimento(dias) {
+      if (dias === 0) return 'Vence hoje';
+      if (dias > 0) return `Vence em ${dias} dia${dias > 1 ? 's' : ''}`;
+      return `Venceu há ${Math.abs(dias)} dia${Math.abs(dias) > 1 ? 's' : ''}`;
+    }
+
     function renderizarUsuarios() {
       const prioritarios = document.getElementById('prioritarios');
       const todos = document.getElementById('todos');
@@ -162,27 +211,38 @@
         const div = document.createElement('div');
         div.className = 'user';
         const dias = diasRestantes(u.vencimento);
+
         if (dias < 0) {
           div.classList.add('expired');
           vencidos++;
         } else if (dias <= 3) {
           div.classList.add('warning');
           aVencer++;
+        } else {
+          div.classList.add('green');
         }
 
-        const texto = `Nome: ${u.nome} | Vencimento: ${u.vencimento} | Telefone: ${u.telefone}`;
-        div.innerText = texto;
-        div.appendChild(document.createElement('br'));
+        const info = document.createElement('div');
+        info.className = 'user-info';
+        info.innerHTML = `
+          <span>👤 <strong>${u.nome}</strong></span>
+          <span>📅 ${formatarData(u.vencimento)} <em>(${descricaoVencimento(dias)})</em></span>
+          <span>📞 ${u.telefone}</span>
+        `;
+        div.appendChild(info);
 
         const btnWhatsapp = document.createElement('button');
         btnWhatsapp.innerText = 'WhatsApp';
         btnWhatsapp.onclick = () => {
-          const msg = encodeURIComponent(document.getElementById('mensagem').value + `\nNome: ${u.nome}`);
+          const msg = encodeURIComponent(
+           "Olá, seu usuário *" + u.nome + "* *" + descricaoVencimento(dias) + "*, gostaria de realizar a renovação?" +
+           "\n\nUsuário: " + u.nome +
+           "\nVencimento: " + formatarData(u.vencimento) + " (" + descricaoVencimento(dias) + ")"
+          );
           const fone = u.telefone.replace(/\D/g, '');
           const link = `https://wa.me/55${fone}?text=${msg}`;
           window.open(link, '_blank');
         };
-        div.appendChild(btnWhatsapp);
 
         const btnRenovar = document.createElement('button');
         btnRenovar.innerText = 'Renovar';
@@ -193,7 +253,6 @@
           salvarLocal();
           renderizarUsuarios();
         };
-        div.appendChild(btnRenovar);
 
         const btnExcluir = document.createElement('button');
         btnExcluir.innerText = 'Excluir';
@@ -204,7 +263,13 @@
             renderizarUsuarios();
           }
         };
-        div.appendChild(btnExcluir);
+
+        const botoes = document.createElement('div');
+        botoes.className = 'user-buttons';
+        botoes.appendChild(btnWhatsapp);
+        botoes.appendChild(btnRenovar);
+        botoes.appendChild(btnExcluir);
+        div.appendChild(botoes);
 
         if (dias < 0 || dias <= 3) {
           prioritarios.appendChild(div);
